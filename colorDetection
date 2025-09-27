@@ -1,0 +1,62 @@
+import cv2
+import numpy as np
+
+# Open camera
+cap = cv2.VideoCapture(0)
+
+while True:
+    _, frame = cap.read()
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # ---- Define ROI (center square) ----
+    h, w, _ = frame.shape
+    cx, cy = w // 2, h // 2
+    box_size = 50
+    x1, y1 = cx - box_size, cy - box_size
+    x2, y2 = cx + box_size, cy + box_size
+    roi = hsv[y1:y2, x1:x2]
+
+    # ---- Define color ranges ----
+    lower_red1 = np.array([0, 120, 70])
+    upper_red1 = np.array([10, 255, 255])
+    lower_red2 = np.array([170, 120, 70])
+    upper_red2 = np.array([180, 255, 255])
+    lower_green = np.array([36, 100, 100])
+    upper_green = np.array([86, 255, 255])
+    lower_blue = np.array([94, 80, 2])
+    upper_blue = np.array([126, 255, 255])
+
+    # ---- Create masks ----
+    mask_red = cv2.inRange(roi, lower_red1, upper_red1) | cv2.inRange(roi, lower_red2, upper_red2)
+    mask_green = cv2.inRange(roi, lower_green, upper_green)
+    mask_blue = cv2.inRange(roi, lower_blue, upper_blue)
+
+    # ---- Count pixels for each color ----
+    red_count = cv2.countNonZero(mask_red)
+    green_count = cv2.countNonZero(mask_green)
+    blue_count = cv2.countNonZero(mask_blue)
+
+    # ---- Decide majority color ----
+    detected_color = None
+    counts = {"RED": red_count, "GREEN": green_count, "BLUE": blue_count}
+    max_color = max(counts, key=counts.get)  # get color with maximum pixels
+
+    if counts[max_color] > 200:  # threshold to avoid false detection
+        detected_color = max_color
+
+    # ---- Draw center box and result ----
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
+    if detected_color:
+        cv2.putText(frame, f"Majority: {detected_color}", (30, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        print("Majority color:", detected_color)
+
+    # ---- Show frame ----
+    cv2.imshow("Frame", frame)
+
+    # Quit with 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
