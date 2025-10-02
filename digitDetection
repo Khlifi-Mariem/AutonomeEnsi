@@ -1,0 +1,143 @@
+import cv2
+import numpy as np
+import os
+
+# --- STEP 1: Load reference templates ---
+template_paths = [
+    "/Users/mac/Documents/templates/3.png",
+    "/Users/mac/Documents/templates/5.png",
+    "/Users/mac/Documents/templates/6.png",
+    "/Users/mac/Documents/templates/9.png"
+]
+
+templates = []
+for path in template_paths:
+    if not os.path.exists(path):
+        print(f"❌ Template not found: {path}")
+        continue
+    img = cv2.imread(path)
+    templates.append({
+        "image": img,
+        "name": os.path.splitext(os.path.basename(path))[0]
+    })
+
+if len(templates) == 0:
+    print("❌ No templates loaded. Exiting.")
+    exit()
+
+# --- STEP 2: Capture image from camera ---
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("❌ Cannot open camera")
+    exit()
+
+print("Press 'c' to capture, 'q' to quit.")
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("❌ Can't receive frame. Exiting...")
+        break
+
+    cv2.imshow("Camera", frame)
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('c'):
+        cam_image = frame.copy()
+        break
+    elif key == ord('q'):
+        cap.release()
+        cv2.destroyAllWindows()
+        exit()
+
+cap.release()
+
+# --- STEP 3: Helper functions ---
+def preprocess(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    return thresh, contours, hierarchy
+
+def find_hole_centroid(hierarchy, contours, main_index):
+    """Return centroid (x, y) of the first hole inside main contour"""
+    if hierarchy is None:
+        return None
+    h = hierarchy[0]
+    for i in range(len(h)):
+        if h[i][3] == main_index:  # child contour = hole
+            M = cv2.moments(contours[i])
+            if M['m00'] != 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                return cx, cy
+    return None
+
+def contour_orientation(contour):
+    """Return the angle of the major axis using PCA / fitEllipse"""
+    if len(contour) < 5:
+        return 0  # Not enough points for ellipse
+    ellipse = cv2.fitEllipse(contour)
+    angle = ellipse[2]  # angle in degrees
+    return angle
+
+# --- STEP 4: Process camera image ---
+cam_thresh, cam_contours, cam_hierarchy = preprocess(cam_image)
+if len(cam_contours) == 0:
+    print("❌ No contours found.")
+    exit()
+
+cam_index = np.argmax([cv2.contourArea(c) for c in cam_contours])
+cam_cnt = cam_contours[cam_index]
+x, y, w, h = cv2.boundingRect(cam_cnt)
+digit_center_y = y + h / 2
+cam_orientation = contour_orientation(cam_cnt)
+
+cv2.drawContours(cam_image, [cam_cnt], -1, (255, 0, 0), 2)
+cv2.imshow("Camera Contour", cam_image)
+cv2.waitKey(500)
+
+# --- STEP 5: Compare contours with templates ---
+best_match = None
+best_score = float('inf')  # smaller = better
+
+for temp in templates:
+    temp_thresh, temp_contours, temp_hierarchy = preprocess(temp["image"])
+    if len(temp_contours) == 0:
+        continue
+
+    temp_cnt = max(temp_contours, key=cv2.contourArea)
+    shape_score = cv2.matchShapes(temp_cnt, cam_cnt, cv2.CONTOURS_MATCH_I1, 0.0)
+
+    print(f"{temp['name']}: shape_score = {shape_score:.4f}")
+
+    if shape_score < best_score:
+        best_score = shape_score
+        best_match = temp["name"]
+
+# --- STEP 6: Refine 6 vs 9 ---
+if best_match in ['6', '9']:
+    # 1. Hole centroid
+    hole_centroid = find_hole_centroid(cam_hierarchy, cam_contours, cam_index)
+    hole_y = hole_centroid[1] if hole_centroid else None
+
+    # 2. Orientation
+    # convention: angles: 0 horizontal, 90 vertical; for curl detection we can check angle
+    # typical 6 curls downward (~>90 degrees?), 9 curls upward (~<90 degrees)
+    orientation = cam_orientation
+
+    if hole_y is not None:
+        if hole_y > digit_center_y:
+            best_match = '6'
+        else:
+            best_match = '9'
+    else:
+        # fallback to orientation
+        if orientation > 90:  # curls downward → 6
+            best_match = '9'
+        else:  # curls upward → 9
+            best_match = '6'
+
+# --- STEP 7: Show result ---
+print(f"✅ Best match: {best_match} (shape_score = {best_score:.4f}, orientation = {cam_orientation:.2f})")
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
