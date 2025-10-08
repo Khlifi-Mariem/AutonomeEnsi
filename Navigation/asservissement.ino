@@ -127,9 +127,9 @@ void updateOdometrie() {
 //FIN ODOMETRY-----------------------------------------------------------------------------
 
 //MOVE FUNCTIONS--------------------------------------------------------------------
-#define motorCorr 0.935
+#define motorCorr 0.95 //MA TMESECH, DO NOT CHANGE VALUE BALIZ (forward : 0.95/ backwards: 0.785)
 
-#define PWM_MAX 200
+#define PWM_MAX 250
 #define PWM_MIN 100
 //speeed
 int PWM_L, PWM_R;
@@ -150,10 +150,18 @@ int peakSpeed = 0;
 float i_right_erreur= 0, i_left_erreur= 0 , right_erreur= 0 ,left_erreur = 0;
 float position_erreur = 0, orientation_erreur = 0;
 float kTheta = 10;
-float kir=1.1;//
-float kpr = 1.1;
-float kil = 1.1;//
-float kpl = 2.0;
+/*
+best kp and ki combo:
+kir = 0.3
+kpr = 1.0
+kil = 0.1
+kpl = 1.0
+*/
+
+float kir = 0.3;//
+float kpr = 1.0;
+float kil = 0.1;//
+float kpl = 1.0;
 
 void setMotionProfile(float dist, float vmax, float accel){
   profileDistance = fabs(dist);
@@ -214,7 +222,7 @@ float getProfileSpeed(float traveled) {
     return v;
 }
 void run() {
-    if (PWM_R > 0) { analogWrite(IN1, PWM_R    ); analogWrite(IN2, 0); }
+    if (PWM_R > 0) { analogWrite(IN1, PWM_R*motorCorr); analogWrite(IN2, 0); }
     else { analogWrite(IN1, 0); analogWrite(IN2, -PWM_R  ); }
 
     if (PWM_L > 0) { analogWrite(IN3, PWM_L); analogWrite(IN4, 0); }
@@ -305,8 +313,8 @@ Serial.print("  velocity left"); Serial.println(currentvelocityLeft);*/
         Serial.print("Distance: "); Serial.print(dS_total);
         Serial.print(" / "); Serial.print(distance);
         Serial.print(" PWM_R: "); Serial.print(PWM_R);
-        Serial.print(" right: "); Serial.print(currentvelocityRight);
-        Serial.print(" left :"); Serial.print(currentvelocityLeft);
+        Serial.print(" right: "); Serial.print(totalR);
+        Serial.print(" left :"); Serial.print(totalL);
 
         Serial.print(" PWM_L: "); Serial.println(PWM_L);
         delay(10);
@@ -345,13 +353,19 @@ void setup() {
 
 
   previousMillis = millis();
-
   moveDistance(60, 200);
+  delay(1000);
+  moveDistance(-60, 200);
+
+  
+
+
 
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  
 
 }
