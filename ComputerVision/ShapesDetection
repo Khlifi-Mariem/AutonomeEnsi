@@ -1,0 +1,95 @@
+import cv2
+import numpy as np
+from collections import Counter
+
+def detect_shapes(image):
+    """Detect triangles and cubes using binary thresholding, contour drawing, and edge detection."""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # --- Binary threshold ---
+    _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # --- Find contours ---
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    shapes = []
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area < 400:
+            continue
+
+        # Draw contour on image (optional)
+        cv2.drawContours(image, [cnt], -1, (0, 255, 0), 2)
+
+        # --- Edge detection on contour region ---
+        mask = np.zeros_like(gray)
+        cv2.drawContours(mask, [cnt], -1, 255, -1)  # fill contour
+        edges = cv2.Canny(mask, 50, 150)
+
+        # Approximate polygon
+        approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
+        vertices = len(approx)
+        shape = None
+
+        if vertices == 3:
+            shape = "triangle"
+        elif vertices == 4:
+            x, y, w, h = cv2.boundingRect(approx)
+            ar = w / float(h)
+            if 0.90 <= ar <= 1.10:
+                shape = "cube"
+            else:
+                shape = "cube"
+
+        if shape:
+            shapes.append(shape)
+
+    return shapes
+
+# --- STEP 1: Open camera ---
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    raise IOError("Cannot open camera")
+
+print("🎥 Camera started. Press 'C' to capture (4 photos total). Press 'Q' to quit.")
+
+all_shapes = []
+photo_count = 0
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to read frame.")
+        break
+
+    display = frame.copy()
+    cv2.putText(display, f"Photos taken: {photo_count}/4", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+    cv2.imshow("Camera - Press 'C' to capture", display)
+
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('c'):
+        photo_count += 1
+        print(f"\n Capturing photo {photo_count}...")
+        shapes = detect_shapes(frame)
+        all_shapes.extend(shapes)
+
+        # Show detection on captured image
+        print(f"Shapes detected in photo {photo_count}: {shapes}")
+        if photo_count >= 4:
+            print("\n 4 photos captured.")
+            break
+
+    elif key == ord('q'):
+        print(" Quit without finishing.")
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
+# --- STEP 2: Count total shapes across all 4 photos ---
+counts = Counter(all_shapes)
+print("\n TOTAL DETECTED SHAPES FROM 4 PHOTOS:")
+print(f"Triangles: {counts.get('triangle', 0)}")
+print(f"Cubes: {counts.get('cube', 0)}")
