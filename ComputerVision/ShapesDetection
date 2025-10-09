@@ -52,7 +52,7 @@ cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     raise IOError("Cannot open camera")
 
-print("🎥 Camera started. Press 'C' to capture (4 photos total). Press 'Q' to quit.")
+print(" Camera started. Press 'C' to capture (2 photos total). Press 'Q' to quit.")
 
 all_shapes = []
 photo_count = 0
@@ -64,7 +64,7 @@ while True:
         break
 
     display = frame.copy()
-    cv2.putText(display, f"Photos taken: {photo_count}/4", (10, 30),
+    cv2.putText(display, f"Photos taken: {photo_count}/2", (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
     cv2.imshow("Camera - Press 'C' to capture", display)
 
@@ -73,12 +73,11 @@ while True:
         photo_count += 1
         print(f"\n Capturing photo {photo_count}...")
         shapes = detect_shapes(frame)
-        all_shapes.extend(shapes)
+        all_shapes.extend(shapes)  # Add both shapes from this photo
 
-        # Show detection on captured image
         print(f"Shapes detected in photo {photo_count}: {shapes}")
-        if photo_count >= 4:
-            print("\n 4 photos captured.")
+        if photo_count >= 2:
+            print("\n 2 photos captured.")
             break
 
     elif key == ord('q'):
@@ -88,8 +87,9 @@ while True:
 cap.release()
 cv2.destroyAllWindows()
 
-# --- STEP 2: Count total shapes across all 4 photos ---
+# --- STEP 2: Count total shapes across both photos ---
 counts = Counter(all_shapes)
-print("\n TOTAL DETECTED SHAPES FROM 4 PHOTOS:")
+print("\n TOTAL DETECTED SHAPES FROM 2 PHOTOS:")
 print(f"Triangles: {counts.get('triangle', 0)}")
 print(f"Cubes: {counts.get('cube', 0)}")
+
