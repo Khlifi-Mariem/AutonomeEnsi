@@ -1,95 +1,89 @@
 import cv2
 import numpy as np
-from collections import Counter
 
-def detect_shapes(image):
-    """Detect triangles and cubes using binary thresholding, contour drawing, and edge detection."""
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # --- Binary threshold ---
-    _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    # --- Find contours ---
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    shapes = []
-
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area < 400:
-            continue
-
-        # Draw contour on image (optional)
-        cv2.drawContours(image, [cnt], -1, (0, 255, 0), 2)
-
-        # --- Edge detection on contour region ---
-        mask = np.zeros_like(gray)
-        cv2.drawContours(mask, [cnt], -1, 255, -1)  # fill contour
-        edges = cv2.Canny(mask, 50, 150)
-
-        # Approximate polygon
-        approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
-        vertices = len(approx)
-        shape = None
-
-        if vertices == 3:
-            shape = "triangle"
-        elif vertices == 4:
-            x, y, w, h = cv2.boundingRect(approx)
-            ar = w / float(h)
-            if 0.90 <= ar <= 1.10:
-                shape = "cube"
-            else:
-                shape = "cube"
-
-        if shape:
-            shapes.append(shape)
-
-    return shapes
-
-# --- STEP 1: Open camera ---
+# --- Start video capture ---
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
-    raise IOError("Cannot open camera")
-
-print(" Camera started. Press 'C' to capture (2 photos total). Press 'Q' to quit.")
-
-all_shapes = []
-photo_count = 0
+    print(" Cannot open camera")
+    exit()
 
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("Failed to read frame.")
+        print(" Failed to grab frame")
         break
 
-    display = frame.copy()
-    cv2.putText(display, f"Photos taken: {photo_count}/2", (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-    cv2.imshow("Camera - Press 'C' to capture", display)
+    display_frame = frame.copy()
+    cv2.putText(display_frame, "Press 'p' to take photo, 'q' to quit", 
+                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+    cv2.imshow("Live Camera", display_frame)
 
     key = cv2.waitKey(1) & 0xFF
-    if key == ord('c'):
-        photo_count += 1
-        print(f"\n Capturing photo {photo_count}...")
-        shapes = detect_shapes(frame)
-        all_shapes.extend(shapes)  # Add both shapes from this photo
 
-        print(f"Shapes detected in photo {photo_count}: {shapes}")
-        if photo_count >= 2:
-            print("\n 2 photos captured.")
-            break
-
-    elif key == ord('q'):
-        print(" Quit without finishing.")
+    if key == ord('q'):
         break
+    elif key == ord('p'):
+        # --- Capture and process frame ---
+        original = frame.copy()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+        edges = cv2.Canny(blurred, 50, 150)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # --- Filter contours ---
+        filtered_contours = []
+        H, W = gray.shape
+        for c in contours:
+            area = cv2.contourArea(c)
+            if area < 500 or area > 50000:
+                continue
+            hull = cv2.convexHull(c)
+            solidity = float(area) / cv2.contourArea(hull)
+            if solidity < 0.8:
+                continue
+            x, y, w, h = cv2.boundingRect(c)
+            if x <= 5 or y <= 5 or x + w >= W - 5 or y + h >= H - 5:
+                continue
+            filtered_contours.append(c)
+
+        # --- Detect triangles and cubes ---
+        filtered_contours = sorted(filtered_contours, key=cv2.contourArea, reverse=True)[:10]
+        triangle_count = 0
+        cube_count = 0
+        shape_images = []
+
+        for i, cnt in enumerate(filtered_contours):
+            x, y, w, h = cv2.boundingRect(cnt)
+            crop = original[y:y+h, x:x+w]
+
+            approx = cv2.approxPolyDP(cnt, 0.05 * cv2.arcLength(cnt, True), True)
+            shape_name = None
+
+            if len(approx) == 3:
+                shape_name = "Triangle"
+                triangle_count += 1
+            elif len(approx) == 4:
+                # Accept any quadrilateral as cube/square
+                shape_name = "Cube/Square"
+                cube_count += 1
+
+            if shape_name is not None:
+                shape_images.append(crop)
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.putText(frame, f"{shape_name}", (x, y-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # --- Show results ---
+        cv2.imshow("Captured Photo", frame)
+        for i, s in enumerate(shape_images):
+            cv2.imshow(f"Shape {i+1}", s)
+
+        print(f"\n Photo taken!")
+        print(f"Total Triangles: {triangle_count}")
+        print(f"Total Cubes/Squares: {cube_count}")
 
 cap.release()
 cv2.destroyAllWindows()
-
-# --- STEP 2: Count total shapes across both photos ---
-counts = Counter(all_shapes)
-print("\n TOTAL DETECTED SHAPES FROM 2 PHOTOS:")
-print(f"Triangles: {counts.get('triangle', 0)}")
-print(f"Cubes: {counts.get('cube', 0)}")
-
