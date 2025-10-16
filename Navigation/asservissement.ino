@@ -17,7 +17,7 @@
 //robot specification cm
 #define nb_ticks 800
 #define wheel_radius 4.25
-#define entreaxe  33.5//33.5
+#define entreaxe  32.96652//33.5
 float previousMillis=0;
 
 
@@ -663,10 +663,17 @@ void setup() {
   /*moveDistance(60, 150);
 delay(1000);
 
-  moveDistance(-50, 150);*/
-dour(180, 160);
+  */
+  
+  moveDistance(60, 150);
+  /*delay(1000);
+  dour(90, 160);
   delay(1000);
-  dour(-180,160);
+  dour(90, 160);
+  delay(1000);
+  moveDistance(80, 150);*/
+  
+  
  
 }
 
