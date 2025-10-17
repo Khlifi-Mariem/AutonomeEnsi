@@ -135,7 +135,7 @@ void updateOdometrie() {
 #define PWM_MIN 100
 
 #define PWM_MAX_DOURA 200
-#define PWM_MIN_DOURA 100
+#define PWM_MIN_DOURA 110
 //speeed
 int PWM_L, PWM_R;
 float accelVal = 5.0f;   // cm/s^2, adjust per robot
@@ -170,17 +170,17 @@ float kpr_b = 0.73; // 0.73
 float kil_b = 0.01; // 0.01
 float kpl_b = 0.76; //0.76
 
-float kposition = 10.0; //10.0
+float kposition = 5.0; //10.0
 //rotate///////////////////////////////////////////////////
 float kir_rp = 0.01;// 0.025
 float kpr_rp = 0.77;// 1.0 //0.77
 float kil_rp = 0.01;// 0.049
-float kpl_rp = 0.8;//0.95//0.8
+float kpl_rp = 0.78;//0.95//0.8
 
 float kir_rn = 0.01;// 0.025
-float kpr_rn = 0.75;// 1.0//0.75
+float kpr_rn = 0.6;// 1.0//0.75
 float kil_rn = 0.01;// 0.049
-float kpl_rn = 0.9;//0.95//0.9
+float kpl_rn = 1.2;//0.95//0.9
 
 float kir;
 float kpr;
@@ -246,7 +246,7 @@ float getProfileSpeed(float traveled) {
         }
       //  Serial.print("v= "); Serial.print(v);
     }
-    return fmax(v,100.0);
+    return fmax(v,110.0);
 }
 void run() {
   if (PWM_R > 0) { analogWrite(IN1, PWM_R    ); analogWrite(IN2, 0); }
@@ -387,13 +387,13 @@ void dour(float angle, float speed){
     kil = kil_rn;
     kpl = kpl_rn;
   }
-
+kposition = 5.0;
     sens = (angle >= 0) ? 1 : -1;
     resetControllers(); 
-    float distance = angle * PI * entreaxe /( 180.0); 
+    float distance = angle * PI * entreaxe /( 180.0 * 2); 
     setMotionProfile(distance, speed, accelVal); 
     prepareMotionProfile();
-  while (abs(abs(theta * 180.0 / PI) - abs(angle)) > 10.0) {
+  while (abs((abs(totalL)+abs(totalR))/2-abs(distance))>3.0) {
 
    
     float remaining = abs(angle) - abs(theta * 180.0 / PI);
@@ -401,7 +401,7 @@ void dour(float angle, float speed){
     int dir = (remaining >= 0) ? 1 : -1;
     //Serial.print("sens : ");Serial.println(sens);Serial.print("    ");Serial.println(dir);
     //Serial.print("   dir ");Serial.println(dir);
-    float current_speed = getProfileSpeed(abs(theta) * entreaxe);
+    float current_speed = getProfileSpeed((abs(totalL)+abs(totalR))/2);
    /* Serial.print("distance : ");Serial.print(abs(totalR) + abs(totalL));Serial.print("  / ");Serial.print(distance);*/
     Serial.print("   current speed : ");Serial.println(current_speed);
     PWM_R = computedoura(dir*sens * current_speed, currentvelocityRight, i_right_erreur, kpr, kir);
@@ -419,6 +419,9 @@ void dour(float angle, float speed){
         //Serial.print(" corr right ");Serial.print(pos_corr_R); Serial.print("             corr left ");Serial.println(pos_corr_L);
 
 ////////////////////////////////////////////////////////////
+if(dir==-1){
+  kposition = 1.0;
+}
        float corr_R = kposition * (abs(totalL) - abs(totalR)); // boost/slow based on other wheel
         float corr_L = kposition * (abs(totalR) - abs(totalL));
 
@@ -477,10 +480,10 @@ void dour(float angle, float speed){
         PWM_L = -PWM_MIN_DOURA;
     }*/
    Serial.print(" PWM right ");Serial.print(PWM_R); Serial.print("             PWM left ");Serial.println(PWM_L);
-     Serial.print("angle : ");Serial.print((theta * 180.0 / PI));Serial.print("  / ");Serial.println(angle);
+     Serial.print("angle : ");Serial.print((abs(totalL)+abs(totalR))/2);Serial.print("  / ");Serial.println(distance);
     
     run();
-   delay(10);
+   delay(5);
 }
 
     stopmotors();
@@ -604,17 +607,17 @@ float computedoura(float setpoint, float current,float& integral,float kpVal,flo
             output = outputCandidate;
         }********************************/
               //  Serial.print("output :"); Serial.println(output);
-        if (outputCandidate > PWM_MAX) {
-            output = PWM_MAX;
+        if (outputCandidate > PWM_MAX_DOURA) {
+            output = PWM_MAX_DOURA;
             if (error < 0) integral = integralCandidate; // anti-windup unwind
         }
-        else if (outputCandidate < -PWM_MAX) {
-            output = -PWM_MAX;
+        else if (outputCandidate < -PWM_MAX_DOURA) {
+            output = -PWM_MAX_DOURA;
             if (error > 0) integral = integralCandidate; // anti-windup unwind
         }
-        else if (fabs(outputCandidate) < PWM_MIN) {
+        else if (fabs(outputCandidate) < PWM_MIN_DOURA) {
             // Optional: deadzone or minimum drive
-            output = (outputCandidate > 0 ? PWM_MIN : -PWM_MIN);
+            output = (outputCandidate > 0 ? PWM_MIN_DOURA : -PWM_MIN_DOURA);
             integral = integralCandidate;
         }
         else {
@@ -653,10 +656,51 @@ void setup() {
   Timer1.initialize(5000);  // 5 ms
   Timer1.attachInterrupt(updateOdometrie);
 
+//dour(180, 172);///////////////////////////////
+dour(-90, 150);
+delay(1000);
+//dour(90, 150);
+
+//STARTING STRATEGY//
+ /*moveDistance(20,110);
+  delay(2000);
+  dour(90,100);
+  delay(2000);
+  moveDistance(50,130);
+  delay(2000);
+  moveDistance(-120, 150);
+  delay(2000);
+  dour(180,172);
+  delay(1000);
+  dour(90,120);//yomkon  akther mil 90
+  delay(2000);
+  moveDistance(70,120);*/
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   previousMillis = millis();
   
+ //moveDistance(50,150);
+//dou(90,150);
+
+
   /*moveDistance(60,150);
   delay(1000);
   moveDistance(-120,150);
@@ -680,7 +724,7 @@ void setup() {
    /*moveDistance(120,150);
    delay(3000);*/
    //moveDistance(-120,150);
-    dour(180,150);
+   // dour(180,150);
 
 
   
