@@ -17,7 +17,7 @@
 //robot specification cm
 #define nb_ticks 800
 #define wheel_radius 4.25
-#define entreaxe  32.96652//33.5
+#define entreaxe  32.96648//33.5
 float previousMillis=0;
 
 
@@ -172,15 +172,15 @@ float kpl_b = 0.76; //0.76
 
 float kposition = 5.0; //10.0
 //rotate///////////////////////////////////////////////////
-float kir_rp = 0.01;// 0.025
-float kpr_rp = 0.77;// 1.0 //0.77
-float kil_rp = 0.01;// 0.049
-float kpl_rp = 0.78;//0.95//0.8
+float kir_rp = 0.01;// 0.01
+float kpr_rp = 1.2;// 0.77
+float kil_rp = 0.01;// 0.01
+float kpl_rp = 0.6;//0.78
 
-float kir_rn = 0.01;// 0.025
-float kpr_rn = 0.6;// 1.0//0.75
-float kil_rn = 0.01;// 0.049
-float kpl_rn = 1.2;//0.95//0.9
+float kir_rn = 0.01;// 0.01
+float kpr_rn = 0.85;// 0.85
+float kil_rn = 0.01;// 0.01
+float kpl_rn = 1.4;//1.4
 
 float kir;
 float kpr;
@@ -249,9 +249,9 @@ float getProfileSpeed(float traveled) {
     return fmax(v,110.0);
 }
 void run() {
-  if (PWM_R > 0) { analogWrite(IN1, PWM_R    ); analogWrite(IN2, 0); }
+  if (PWM_R >= 0) { analogWrite(IN1, PWM_R    ); analogWrite(IN2, 0); }
     else { analogWrite(IN1, 0); analogWrite(IN2, -PWM_R  );}
-  if (PWM_L > 0) { analogWrite(IN3, PWM_L); analogWrite(IN4, 0); }
+  if (PWM_L >= 0) { analogWrite(IN3, PWM_L); analogWrite(IN4, 0); }
     else { analogWrite(IN3, 0); analogWrite(IN4, -PWM_L);
      }
 
@@ -393,7 +393,7 @@ kposition = 5.0;
     float distance = angle * PI * entreaxe /( 180.0 * 2); 
     setMotionProfile(distance, speed, accelVal); 
     prepareMotionProfile();
-  while (abs((abs(totalL)+abs(totalR))/2-abs(distance))>3.0) {
+  while (abs((abs(totalL)+abs(totalR))/2-abs(distance))>2.0) {
 
    
     float remaining = abs(angle) - abs(theta * 180.0 / PI);
@@ -405,7 +405,7 @@ kposition = 5.0;
    /* Serial.print("distance : ");Serial.print(abs(totalR) + abs(totalL));Serial.print("  / ");Serial.print(distance);*/
     Serial.print("   current speed : ");Serial.println(current_speed);
     PWM_R = computedoura(dir*sens * current_speed, currentvelocityRight, i_right_erreur, kpr, kir);
-    PWM_L = computedoura(-dir*sens * current_speed, currentvelocityLeft, i_left_erreur, kpl, kil);
+    PWM_L = computedoura(-dir*sens * current_speed,  currentvelocityLeft, i_left_erreur, kpl, kil);
     Serial.print(" PWM right ");Serial.print(PWM_R); Serial.print("             PWM left ");Serial.println(PWM_L);
 ///////////////////////////////////////////////////////////////////////
   /* float avg_abs = (abs(totalR) + abs(totalL)) / 2.0;
@@ -415,7 +415,7 @@ kposition = 5.0;
 
     PWM_R += dir * pos_corr_R;  // boost if lagging, reduce if overshoot
     PWM_L += dir *pos_corr_L;  // same*/
-   // Serial.print(" distance right ");Serial.print(totalR); Serial.print("             distance left ");Serial.println(totalL);
+   Serial.print(" distance right ");Serial.print(totalR); Serial.print("             distance left ");Serial.println(totalL);
         //Serial.print(" corr right ");Serial.print(pos_corr_R); Serial.print("             corr left ");Serial.println(pos_corr_L);
 
 ////////////////////////////////////////////////////////////
@@ -479,11 +479,12 @@ if(dir==-1){
     } else if (PWM_L < 0 && PWM_L > -PWM_MIN_DOURA) {
         PWM_L = -PWM_MIN_DOURA;
     }*/
+    
    Serial.print(" PWM right ");Serial.print(PWM_R); Serial.print("             PWM left ");Serial.println(PWM_L);
      Serial.print("angle : ");Serial.print((abs(totalL)+abs(totalR))/2);Serial.print("  / ");Serial.println(distance);
     
     run();
-   delay(5);
+   //delay(5);
 }
 
     stopmotors();
@@ -655,10 +656,12 @@ void setup() {
   // Initialisation du Timer
   Timer1.initialize(5000);  // 5 ms
   Timer1.attachInterrupt(updateOdometrie);
+//previousMillis = millis();
 
 //dour(180, 172);///////////////////////////////
-dour(-90, 150);
+dour(90, 150);
 delay(1000);
+dour(90, 150);
 //dour(90, 150);
 
 //STARTING STRATEGY//
@@ -695,7 +698,7 @@ delay(1000);
 
 
 
-  previousMillis = millis();
+  
   
  //moveDistance(50,150);
 //dou(90,150);
