@@ -157,20 +157,20 @@ float position_erreur = 0, orientation_erreur = 0;
 float kTheta =6.0; //!!!!!!
 
 //forward
-float kir_f = 0.13;// 0.04
-float kpr_f = 0.38;// 1.0
-float kil_f = 0.06;// 0.087
-float kpl_f = 0.7;//0.95
+float kir_f = 0.11; //0.13;
+float kpr_f = 0.38; //0.38;
+float kil_f = 0.06; //0.06;
+float kpl_f = 0.59; //0.7;
 
 
 
 //backwards
-float kir_b = 0.01;// 0.025//0.6
-float kpr_b = 0.73;// 1.0
-float kil_b = 0.01;// 0.049//0.087
-float kpl_b = 0.76;//0.95//
+float kir_b = 0.01; // 0.01
+float kpr_b = 0.73; // 0.73
+float kil_b = 0.01; // 0.01
+float kpl_b = 0.76; //0.76
 
-float kposition = 10.0;//1.2
+float kposition = 10.0; //10.0
 //rotate///////////////////////////////////////////////////
 float kir_rp = 0.01;// 0.025
 float kpr_rp = 0.77;// 1.0 //0.77
@@ -246,7 +246,7 @@ float getProfileSpeed(float traveled) {
         }
       //  Serial.print("v= "); Serial.print(v);
     }
-    return fmax(v,120.0);
+    return fmax(v,100.0);
 }
 void run() {
   if (PWM_R > 0) { analogWrite(IN1, PWM_R    ); analogWrite(IN2, 0); }
@@ -326,12 +326,12 @@ void moveDistance(float distance, float speed) {
 
         float current_speed = sens * getProfileSpeed(fabs(dS_total));
         
-       /* Serial.print(current_speed);
+        Serial.print(current_speed);
         Serial.print("\t");
         Serial.print(totalR);
         Serial.print("\t");
         Serial.println(totalL);
-*/
+
         PWM_R = compute(current_speed,currentvelocityRight,i_right_erreur,kpr,kir);
         
         PWM_L = compute(current_speed, currentvelocityLeft,i_left_erreur,kpl,kil);
@@ -656,22 +656,46 @@ void setup() {
 
 
   previousMillis = millis();
-  //Serial.print("lll");
-  //delay(4000);
-  // moveDistance(70,120);
-   //delay(2000);
-  /*moveDistance(60, 150);
-delay(1000);
-
-  */
   
-  moveDistance(60, 150);
-  /*delay(1000);
-  dour(90, 160);
+  /*moveDistance(60,150);
   delay(1000);
-  dour(90, 160);
+  moveDistance(-120,150);
   delay(1000);
-  moveDistance(80, 150);*/
+  dour(-180,150);
+  delay(1000);
+  dour(90,150);
+  delay(1000);
+  moveDistance(70,150);
+  delay(1000);
+  dour(90,150);
+  delay(1000);
+  moveDistance(30,150);
+  delay(1000);*/
+  //moveDistance(120,150);
+  /*delay(5000);
+  moveDistance(30,150);
+  delay(5000);
+  moveDistance(40,150);*/
+
+   /*moveDistance(120,150);
+   delay(3000);*/
+   //moveDistance(-120,150);
+    dour(180,150);
+
+
+  
+  /*moveDistance(50, 150);
+  moveDistance(140, 150);*/
+
+
+  /*moveDistance(60, 150);
+  //delay(1000);
+  //moveDistance(-60, 150);
+  //dour(-90, 160);
+  //delay(1000);
+  //dour(-90, 160);
+  //delay(1000);*/
+  
   
   
  
